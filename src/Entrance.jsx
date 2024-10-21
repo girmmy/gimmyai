@@ -4,13 +4,16 @@ import Chat from "./Chat";
 import logo from '../public/gaspface-logo.png'; // Adjust the path if necessary
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faInstagram, faGithub, faLinkedin } from '@fortawesome/free-brands-svg-icons';
+import { useNavigate } from 'react-router-dom';
 // import { faEnvelope as faEnvelopeSolid } from '@fortawesome/free-solid-svg-icons';
 
 const Entrance = () => {
   const [showChat, setShowChat] = useState(false);
-
+  const navigate = useNavigate();
   const handleStartChatting = () => {
     setShowChat(true);
+    
+    navigate('/chat');
   };
 
   return (
@@ -24,7 +27,7 @@ const Entrance = () => {
                 Unlock the Power <br /> of AI with GimmyAI
               </h1>
               <p>Your AI companion for everyday tasks and engaging conversations.</p>
-              <p className="donate">$girmmy to donate!</p>
+              {/* <p className="donate">$girmmy to donate!</p> */}
             </div>
             <button className="start-button" onClick={handleStartChatting}>
               Start Chatting!

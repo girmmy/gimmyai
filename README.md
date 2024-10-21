@@ -1,7 +1,3 @@
-Here's the updated README:
-
----
-
 # GimmyAI - AI Chatbot by Gimmy
 
 GimmyAI is an AI chatbot built using React and powered by OpenAI's GPT-4 API. Designed for ease of use, GimmyAI offers intelligent conversations without the need for sign-in or any form of authentication. While it has been personalized with insights into Gimmy and his endeavors, it can be used for a variety of general purposes.

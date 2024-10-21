@@ -3,11 +3,10 @@ import 'katex/dist/katex.min.css';
 import { useState, useEffect, useRef } from 'react';
 import './Chat.css';
 import logo from '../public/gaspface-logo.png'; // Adjust the path if necessary
-import attach from '../public/attach-file.png';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCircleInfo } from '@fortawesome/free-solid-svg-icons';
 import content from "./aicontent.js";
-
+import { FaArrowUp, FaPaperclip } from "react-icons/fa";
 const systemMessage = {
   role: "system",
   content: content // Context for AI with background knowledge of me and some rules and stuff
@@ -15,9 +14,7 @@ const systemMessage = {
 };
 
 const API_KEY = import.meta.env.VITE_API_KEY;
-const GAIPLUS = import.meta.env.VITE_GIMMYAIPLUSKEY;
-
-
+const currentGptModel = 'gpt-4o-2024-08-06';
 
 function Chat() {
   const [messages, setMessages] = useState([
@@ -28,19 +25,8 @@ function Chat() {
   ]);
   const [newMessage, setNewMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  const [modelIdentifier, setModelIdentifier] = useState("gpt-4o-mini-2024-07-18");
-  const [inputContainerHeight, setInputContainerHeight] = useState(0);
-  const [isGimmyAIPlusActive, setIsGimmyAIPlusActive] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
-  const [originalInputContainerHeight, setOriginalInputContainerHeight] = useState(null);
   const lastMessageRef = useRef(null);
-
-  useEffect(() => {
-    const inputContainerElement = document.querySelector('.input-container');
-    if (inputContainerElement) {
-      setOriginalInputContainerHeight(inputContainerElement.offsetHeight);
-    }
-  }, []);
   
 
   useEffect(() => {
@@ -94,96 +80,66 @@ function Chat() {
     setMessages(prevMessages => [...prevMessages, { message: errorMessage, sender: 'ChatGPT' }]);
   };
 
-
-
-  // const toBase64 = (file) => new Promise((resolve, reject) => {
-  //   const reader = new FileReader();
-  //   reader.readAsDataURL(file);
-  //   reader.onload = () => resolve(reader.result);
-  //   reader.onerror = error => reject(error);
-  // });
   
-  const MAX_IMAGE_SIZE_MB = 1; // Set a maximum size limit for images (in MB)
 
-const sendImageToAPI = async (base64Image) => {
-  setIsTyping(true);
-  try {
-    // Validate image size
-    const imageSize = base64Image.length * (3 / 4) / (1024 * 1024); // Convert base64 length to MB
-    if (imageSize > MAX_IMAGE_SIZE_MB) {
-      displayErrorMessage(`The image is too large (${imageSize.toFixed(2)} MB). Please upload an image smaller than ${MAX_IMAGE_SIZE_MB} MB.`);
-      setIsTyping(false);
-      return;
-    }
+  const MAX_FILE_SIZE_MB = 15; // Set a maximum size limit for images (in MB)
 
-    // Display the image sent by the user as a message in the chat
-    displayImageMessage(base64Image);
-
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o', // Specify the desired model
+  const sendImageToAPI = async (base64File) => {
+    setIsTyping(true);
+    try {
+      const fileSize = base64File.length * (3 / 4) / (1024 * 1024); // Convert base64 length to MB
+      if (fileSize > MAX_FILE_SIZE_MB) {
+        displayErrorMessage(`The file is too large (${fileSize.toFixed(2)} MB). Please upload a file smaller than ${MAX_FILE_SIZE_MB} MB.`);
+        setIsTyping(false);
+        return;
+      }
+  
+      // For now, describe the image in the text and send it
+      const imageMessage = `I've uploaded an image (${fileSize.toFixed(2)} MB).`; // Optionally include file size
+      setMessages(prevMessages => [...prevMessages, { message: imageMessage, sender: 'user' }]);
+  
+      const payload = {
+        model: currentGptModel, // Ensure the correct model is used
         messages: [
           systemMessage,
           ...messages.map(msg => ({
             role: msg.sender === "ChatGPT" ? "assistant" : "user",
-            content: msg.message
+            content: msg.message,
           })),
-          { role: 'user', content: base64Image }
-        ]
-      })
-    });
-
-    const data = await response.json();
-    if (response.ok) {
-      // Display the AI's response as a message in the chat
-      setMessages(prevMessages => [...prevMessages, {
-        message: data.choices[0].message.content,
-        sender: "ChatGPT"
-      }]);
-    } else {
-      displayErrorMessage(`Error: ${data.error.message}`);
-    }
-  } catch (error) {
-    console.error("Error sending image to API:", error);
-    displayErrorMessage("An error occurred while sending the image to the API.");
-  } finally {
-    setIsTyping(false);
-  }
-};
-
-
+          { role: 'user', content: imageMessage }, // Mention the image as part of the conversation
+        ],
+      };
   
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload),
+      });
   
-  
-
-  const checkForKeywordAndSendMessage = async (message) => {
-    try {
-      if (message.includes(GAIPLUS)) {
-        setModelIdentifier("gpt-4o");
-        setIsGimmyAIPlusActive(true);
-        setMessages(prevMessages => [
-          ...prevMessages,
-          {
-            message: "Switched model to GimmyAI+",
-            sender: "ChatGPT"
-          }
-        ]);
+      const data = await response.json();
+      if (response.ok) {
+        // Display the response from GPT in the chat
+        setMessages(prevMessages => [...prevMessages, {
+          message: data.choices[0].message.content,
+          sender: "ChatGPT"
+        }]);
       } else {
-        // Send the text message to the API
-        await sendMessageToAPI(message);
+        if (response.status === 429) {
+          displayErrorMessage("GimmyAI is getting too many requests right now. Please try again after a few minutes.");
+        } else {
+          displayErrorMessage(`Error: ${data.error.message}`);
+        }
       }
     } catch (error) {
-      console.error("Error sending message:", error);
-      displayErrorMessage("Oops! There was an unexpected hiccup. Let's try again.");
+      console.error('Error interpreting file:', error);
+      displayErrorMessage('An error occurred while interpreting the file.');
+    } finally {
+      setIsTyping(false);
     }
   };
-
-  
   
 
 
@@ -200,7 +156,7 @@ const sendImageToAPI = async (base64Image) => {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          model: modelIdentifier,
+          model: 'gpt-4o-2024-08-06',
           messages: [
             systemMessage,
             ...messages.map(msg => ({
@@ -220,10 +176,10 @@ const sendImageToAPI = async (base64Image) => {
         }]);
       } else {
         apiErrorOccurred = true;
-        if (data.error) {
+        if (response.status === 429) {
+          friendlyErrorMessage = "GimmyAI is getting too many requests right now. Please try again after a few minutes.";
+        } else if(data.error){
           friendlyErrorMessage = `Error: ${data.error.message}`;
-        } else {
-          friendlyErrorMessage = "GimmyAI might be on maintenance right now. Please check back in a bit.";
         }
       }
     } catch (error) {
@@ -237,13 +193,17 @@ const sendImageToAPI = async (base64Image) => {
       }
     }
   };
+
   
   
   
   const handleSendMessage = async () => {
     const chatContainer = document.querySelector('.app-body');
     const isScrollingUp = chatContainer.scrollTop < chatContainer.scrollHeight - chatContainer.offsetHeight;
-
+    if (event && event.shiftKey && event.key === 'Enter') {
+      event.preventDefault();
+      return;
+    }
     if (!newMessage.trim() && selectedImage === null) return;
     const outgoingMessage = {
       message: newMessage,
@@ -264,81 +224,54 @@ const sendImageToAPI = async (base64Image) => {
         await sendImageToAPI(selectedImage);
         setSelectedImage(null);
       } else if (outgoingMessage.message.trim()) {
-        await checkForKeywordAndSendMessage(outgoingMessage.message);
+        await sendMessageToAPI(outgoingMessage.message);
       }
     } catch (error) {
+      if (error.status === 429) {
+        displayErrorMessage("GimmyAI is getting too many requests right now. Please try again after a few minutes.");
+      } 
       console.error("Error sending message:", error);
       displayErrorMessage("GimmyAI ran out of juice, come back later!");
     } finally {
       setIsTyping(false);
-      setInputContainerHeight(originalInputContainerHeight);
     }
   
     if (!isScrollingUp) {
       lastMessageRef.current.scrollIntoView({ behavior: "smooth" });
     }
   
-    const textarea = document.querySelector('textarea');
-    textarea.style.height = `${originalInputContainerHeight}px`;
   };
-  
-  
-  
-  
-  
-  const formatMathEquation = (equation) => {
-    try {
-      return katex.renderToString(equation, {
-        throwOnError: false,
-        displayMode: equation.startsWith('$$') && equation.endsWith('$$')
-      });
-    } catch (error) {
-      console.error('Error formatting equation:', error);
-      return equation;
-    }
-  };
-  
 
-  
-  const handleKeyDown = (event) => {
-    if (event.key === 'Enter' && !event.shiftKey) {
-      event.preventDefault(); // Prevent the default behavior of Enter key in a textarea
-      handleSendMessage();
-    } else if (event.key === 'Enter' && event.shiftKey) {
-      // Allow the Shift + Enter behavior to create a new line
-      const value = newMessage;
-      const cursorPos = event.target.selectionStart;
-      setNewMessage(
-        value.slice(0, cursorPos) + "\n" + value.slice(cursorPos)
-      );
-    }
-  };
 
   const handlePaste = (event) => {
-    // Prevent the default paste action
-    event.preventDefault();
-    // Use the Clipboard API to access the data directly
     const items = event.clipboardData.items;
   
-    // Find items of the type 'image'
-    const imageItem = Array.from(items).find(item => item.type.indexOf('image') === 0);
+    const imageItem = Array.from(items).find((item) => item.type.indexOf('image') === 0);
   
-    if (imageItem && isGimmyAIPlusActive) {
-      // If there's an image and GimmyAI+ is active, read it and send to the API
+    if (imageItem) {
       const blob = imageItem.getAsFile();
       const reader = new FileReader();
       reader.onloadend = () => {
         const base64Image = reader.result;
-        displayImageMessage(base64Image); // Display it in the UI
-        sendImageToAPI(base64Image); // Send it to the API
+        displayImageMessage(base64Image);
+        sendImageToAPI(base64Image);
       };
       reader.readAsDataURL(blob);
     } else {
-      // If it's not an image or GimmyAI+ isn't active, handle as a regular text paste
       const pasteText = event.clipboardData.getData('text/plain');
-      setNewMessage(prevMessage => prevMessage + pasteText); // Append the pasted text
+      setNewMessage((prevMessage) => prevMessage + pasteText);
     }
+    const textarea = document.querySelector('.input-container textarea');
+
+    textarea.addEventListener('keydown', (event) => {
+      if (event.shiftKey && event.key === 'Enter') {
+        event.preventDefault();
+        const newline = document.createElement('br');
+        textarea.appendChild(newline);
+      }
+    });
   };
+  
   
 
   const formatMessage = (message) => {
@@ -348,46 +281,46 @@ const sendImageToAPI = async (base64Image) => {
       };
     }
   
-    // Convert Markdown headings to bold tags
-    let formattedMessage = message.replace(/###\s?(.*)/g, '<strong>$1</strong>');
+    let formattedMessage = message.message.replace(/###\s?(.*)/g, '<strong>$1</strong>');
   
-    // Convert bold Markdown to strong tags
     formattedMessage = formattedMessage.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-  
-    // Convert italic Markdown to em tags
     formattedMessage = formattedMessage.replace(/\*(.*?)\*/g, '<em>$1</em>');
-  
-    // Convert Markdown links to anchor tags
     formattedMessage = formattedMessage.replace(/\[([^\]]+)\]\((http[^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
-  
-    // Convert plain text URLs to anchor tags, but skip ones already in anchor tags
     formattedMessage = formattedMessage.replace(/(\bhttps?:\/\/[^\s<]+)(?![^<]*>)(?!<\/a>)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
   
-    // Format mathematical equations
-    formattedMessage = formattedMessage.replace(/\$\$(.*?)\$\$/g, (match, equation) => {
-      return `<span>${formatMathEquation(`$$${equation}$$`)}</span>`;
-    });
+    try {
+      // Block-level LaTeX equations with $$...$$
+      formattedMessage = formattedMessage.replace(/\$\$(.*?)\$\$/g, (match, equation) => {
+        return `<div class="katex-block">${katex.renderToString(equation, { throwOnError: false, displayMode: true })}</div>`;
+      });
   
-    formattedMessage = formattedMessage.replace(/\$(.*?)\$/g, (match, equation) => {
-      return `<span>${formatMathEquation(`$${equation}$`)}</span>`;
-    });
+      // Inline LaTeX equations with $...$
+      formattedMessage = formattedMessage.replace(/\$(.*?)\$/g, (match, equation) => {
+        return `<span class="katex-inline">${katex.renderToString(equation, { throwOnError: false, displayMode: false })}</span>`;
+      });
+    } catch (error) {
+      console.error('Error formatting equation:', error);
+    }
   
     return { __html: formattedMessage };
   };
   
+
   
 
-  const handleTextareaChange = (e) => {
-    const target = e.target;
-    setNewMessage(target.value);
   
-    if (target.value.trim()) {
-      target.style.height = 'auto';
-      target.style.height = `${target.scrollHeight}px`;
-    } else {
-      target.style.height = `${originalInputContainerHeight}px`;
-    }
-  };
+
+// const handleTextareaChange = (e) => {
+//   const target = e.target;
+//   setNewMessage(target.value);
+
+//   if (target.value.trim()) {
+//     target.style.height = 'auto';
+//     target.style.height = `${target.scrollHeight}px`;
+//   }
+// };
+
+  
   
 
   return (
@@ -400,22 +333,12 @@ const sendImageToAPI = async (base64Image) => {
           <span className="tooltip w3-animate-opacity">GimmyAI is powered by better models of GPT</span>
         </div>
       </header>
-      <div className="app-body" style={{ marginBottom: `${inputContainerHeight}px`}}>
-      {messages.map((msg, index) => (
-        <div
-          key={index}
-          className={`message ${msg.sender === "ChatGPT" ? 'incoming' : 'outgoing'}`}
-        >
-          {msg.image ? (
-            <img src={msg.message} alt="User upload" style={{ maxWidth: '100%', maxHeight: '400px' }} />
-          ) : (
-            <div
-              className={`message-content ${msg.sender}`}
-              dangerouslySetInnerHTML={formatMessage(msg.message.replace(new RegExp(GAIPLUS, 'g'), '**KEYWORD USED**'))}
-            />
-          )}
-        </div>
-      ))}
+      <div className="app-body">
+      {messages.map((message, index) => (
+            <div key={index} className={`message ${message.sender === 'user' ? 'outgoing' : 'incoming'}`}>
+              <div dangerouslySetInnerHTML={formatMessage(message)} />
+            </div>
+          ))}
         <div ref={lastMessageRef} />
         {isTyping && (
           <div className="typing-indicator">
@@ -424,20 +347,17 @@ const sendImageToAPI = async (base64Image) => {
         )}
       </div>
       <div className="input-container">
-      {isGimmyAIPlusActive && (
-        <>
-          <input
-            type="file"
-            id="imageInput"
-            accept="image/*"
-            style={{ display: 'none' }}
-            onChange={handleFileSelect}
-          />
-          <label htmlFor="imageInput" className="attachment-button">
-            <img src={attach} alt="Attach File" />
+
+          <label htmlFor="imageInput">
+            <FaPaperclip className="attachment-button"/>
+            <input
+              type="file"
+              id="imageInput"
+              accept="image/png,image/jpeg,image/webp,image/gif,.pdf/.doc"
+              onChange={handleFileSelect}
+              style={{ display: 'none' }}
+            />
           </label>
-        </>
-      )}
        {selectedImage && (
         <div className="image-preview-container" onClick={handleImagePreviewClick}>
           <img src={selectedImage} alt="Selected Image" className="image-preview" />
@@ -445,17 +365,23 @@ const sendImageToAPI = async (base64Image) => {
       )}
               
       <textarea
-        type="text"
-        placeholder="Type a message..."
-        value={newMessage} 
-        onChange={handleTextareaChange}
-        onKeyDown={handleKeyDown}
+        value={newMessage}
+        onChange={(e) => {
+          // handleTextareaChange(e);
+          setNewMessage(e.target.value);
+        }}
+        placeholder="Type your message here..."
+        className="input-textarea"
         onPaste={handlePaste}
-        autoFocus
-        style={{ height: 'auto', overflowY: 'auto' }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && !e.shiftKey && newMessage.trim()) {
+            e.preventDefault();
+            handleSendMessage();
+          }
+        }}
       />
 
-      <button onClick={handleSendMessage}>Send</button>
+      <FaArrowUp className="send-button" onClick={handleSendMessage} title="Send" alt="Send Message"></FaArrowUp>
     </div>
   </div>
 

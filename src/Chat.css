@@ -7,6 +7,7 @@
   --input-color: #3c3e44; /* Slightly lighter input background for contrast */
   --input-text-color: #dcdcdc; /* Input text color for visibility */
   --message-background: #4a4e69; /* Dark message bubble background */
+  /* --input-container-height: */
 }
 
 body, html {
@@ -55,14 +56,24 @@ body, html {
   font-weight: bold;
 }
 
+.katex-block {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
+}
+
+.katex-inline {
+  display: inline;
+}
+
+
 .app-body {
   flex-grow: 1;
   flex: 1;
   margin-bottom: calc(var(--input-container-height) + env(safe-area-inset-bottom));
   overflow-y: auto; /* Enable scrolling */
-  padding: 1rem;
-  padding-top: 0.25rem;
-  padding-bottom: 40px; 
+  padding: 1rem 10rem 1rem 10rem;
+  margin-bottom: 150px;
   display: flex;
   flex-direction: column;
   position: relative; 
@@ -95,37 +106,36 @@ body, html {
 
 .input-container {
   position: fixed; /* Fix the entire input container at the bottom */
-  bottom: 0; 
-  left: 0; 
-  width: 100%; 
-  padding: 1rem; 
+  bottom: 20px; 
+  left: 50%; /* Center the input container horizontally */
+  transform: translateX(-50%); /* Adjust the position to center it */
+  width: 80%; /* Reduce the width to 80% of the screen */
   background-color: var(--input-color);
   box-sizing: border-box; 
   display: flex; 
-  align-items: center; 
+  align-items: center; /* Center the textarea and send-button vertically */
   justify-content: space-between; 
-  align-items: flex-start;
+  border-radius: 30px; /* Keep the border radius of 30px */
+  padding: 0.5rem 1rem; /* Add some padding to the input container */
 }
 
 .input-container textarea {
   flex: 1;
-  margin-right: 16px;
-  margin-left: 12px;
-  padding: 0.5rem 1rem;
-  font-size: 1rem;
+  /* font-size: 1rem; */
+  padding: 0.8rem;
+  max-height: 11rem;
+  height: 70px;
   border: none;
-  max-height: 90px; /* Add a maximum height */
   overflow-y: auto; 
   scrollbar-width: thin;
   scrollbar-color: var(--sb-thumb-color) var(--sb-track-color);
-  flex: 1;
   font-family: 'Poppins', sans-serif;
   resize: none; /* Disable resizing */
-  border-radius: 20px;
   background-color: var(--background-color);
+  white-space: pre-wrap; 
   color: var(--input-text-color);
+  border-radius: 30px; /* Make the textarea's border radius match the input container's */
 }
-
 
 .input-container textarea::-webkit-scrollbar {
   width: var(--sb-size);
@@ -141,35 +151,26 @@ background: var(--sb-track-color);
   border-radius: 14px;
 }
 
-.input-container button {
-  padding: 0.5rem 1rem; /* Padding inside the button */
-  background-color: var(--secondary-color);
+.input-container .send-button {
+  margin-left: 0.5rem;
+  padding: 0.5rem;
+  background-color: var(--primary-color);
   border: none;
-  border-radius: 20px; /* Rounded corners */
-  color: var(--background-color);
+  color: white;
   font-family: 'Poppins', sans-serif;
-  cursor: pointer; /* Cursor pointer for button hover */
-  white-space: nowrap; /* Prevent wrapping of button text */
-  width: Xpx;
-  flex-shrink: 0;
-  height: auto;
-  align-self: stretch;
-  flex-grow: 0;
+  cursor: pointer; /* Cursor pointer for send-button hover */
+  white-space: nowrap; /* Prevent wrapping of send-button text */
+  border-radius: 50%; /* Make the send-button a circle */
+  width: auto; /* Set the width of the send-button */
+  height: 1.5rem; /* Set the height of the send-button */
+  display: flex; /* Make the send-button a flex container */
+  justify-content: center; /* Center the icon horizontally */
+  align-items: center; /* Center the icon vertically */
 }
 
-.input-container button {
-  background-color: var(--secondary-color);
-  border: none;
-  border-radius: 20px;
-  padding: 0.5rem 1rem;
-  margin-right: 0.5rem;
-  cursor: pointer;
-  font-size: 1rem; /* Match the font size with the send button */
-  /* Add any other properties to make them look similar */
-}
-
-.input-container button:hover {
-  opacity: 0.9; /* Slight opacity change on hover for feedback */
+.input-container.send-button:hover {
+  color: grey;
+  opacity: 0.9; 
 }
 
 /* Ensure the layout is responsive */
@@ -184,7 +185,7 @@ background: var(--sb-track-color);
     font-size: 1.5rem; /* Smaller font size for very small screens */
   }
 
- .input-container input,.input-container button {
+ .input-container input,.send-button {
     padding: 0.4rem; /* Smaller padding for very small screens */
     font-size: 16px;
   }
@@ -194,7 +195,7 @@ background: var(--sb-track-color);
     font-size: 16px;
   }
 
- .input-container button {
+ .input-container .send-button {
     font-size: 1rem; /* Smaller font size for the button text */
   }
   
@@ -235,10 +236,17 @@ background: var(--sb-track-color);
   color: #a8a8a8; /* Lighter shade for placeholder text */
   font-style: italic; /* If you want it to be italic */
   font-size: 0.9em; /* Adjust the font size as needed */
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 
-
+@media screen and (max-width: 580px) {
+  .app-body {
+    padding: 1rem 2rem;
+  }
+}
 
 @media (max-width: 480px){
   body, html, #root{
@@ -311,27 +319,19 @@ body::-webkit-scrollbar-thumb {
 /* Adjustments for the attachment button */
 .attachment-button {
   display: flex;
+  height: 50%;
+  width: auto;
+  color: var(--primary-color);
   justify-content: center;
   align-items: center;
   width: 30px; /* Decreased width */
-  height: 48px; /* Height to match the input field */
+  height: 1.5rem; /* Height to match the input field */
   margin-right: 0.5rem;
   cursor: pointer;
   background: none; /* To ensure there is no background color */
   border: none; /* Remove border if not needed */
 }
 
-/* Center the image within the button and adjust its size */
-.attachment-button img {
-  width: auto; /* Adjust this value to resize the image */
-  height: 62%; /* Keep this to maintain the aspect ratio */
-}
-
-
-.input-container {
-  align-items: center; 
-  
-}
 
 .message.image-message img {
   max-width: 75%;

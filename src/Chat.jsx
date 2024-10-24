@@ -196,7 +196,6 @@ function Chat() {
 
   
   
-  
   const handleSendMessage = async () => {
     const chatContainer = document.querySelector('.app-body');
     const isScrollingUp = chatContainer.scrollTop < chatContainer.scrollHeight - chatContainer.offsetHeight;
@@ -291,12 +290,14 @@ function Chat() {
     try {
       // Block-level LaTeX equations with $$...$$
       formattedMessage = formattedMessage.replace(/\$\$(.*?)\$\$/g, (match, equation) => {
-        return `<div class="katex-block">${katex.renderToString(equation, { throwOnError: false, displayMode: true })}</div>`;
+        const html = katex.renderToString(equation, { throwOnError: false, displayMode: true });
+        return `<div class="katex-block">${html}</div>`;
       });
   
       // Inline LaTeX equations with $...$
       formattedMessage = formattedMessage.replace(/\$(.*?)\$/g, (match, equation) => {
-        return `<span class="katex-inline">${katex.renderToString(equation, { throwOnError: false, displayMode: false })}</span>`;
+        const html = katex.renderToString(equation, { throwOnError: false, displayMode: false });
+        return `<span class="katex-inline">${html}</span>`;
       });
     } catch (error) {
       console.error('Error formatting equation:', error);
@@ -304,8 +305,6 @@ function Chat() {
   
     return { __html: formattedMessage };
   };
-  
-
   
 
   

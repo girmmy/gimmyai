@@ -56,16 +56,18 @@ body, html {
   font-weight: bold;
 }
 
-.katex-block {
+.katex-block, .katex-inline {
+  font-size: 1em;
+  line-height: 1.2em;
+}
+
+.katex-block > .katex {
   display: block;
-  text-align: center;
-  margin: 1em 0;
 }
 
-.katex-inline {
-  display: inline;
+.katex-inline > .katex {
+  display: inline-block;
 }
-
 
 .app-body {
   flex-grow: 1;
@@ -242,9 +244,9 @@ background: var(--sb-track-color);
 }
 
 
-@media screen and (max-width: 580px) {
+@media screen and (max-width: 780px) {
   .app-body {
-    padding: 1rem 2rem;
+    padding: 1rem;
   }
 }
 

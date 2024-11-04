@@ -241,8 +241,10 @@ function Chat() {
   
   };
 
-
+  // eslint-disable-next-line no-unused-vars
   const handlePaste = (event) => {
+    event.preventDefault(); // Prevent the default paste behavior
+  
     const items = event.clipboardData.items;
   
     const imageItem = Array.from(items).find((item) => item.type.indexOf('image') === 0);
@@ -258,17 +260,8 @@ function Chat() {
       reader.readAsDataURL(blob);
     } else {
       const pasteText = event.clipboardData.getData('text/plain');
-      setNewMessage((prevMessage) => prevMessage + pasteText);
+      setNewMessage(prevMessage => prevMessage + pasteText); 
     }
-    const textarea = document.querySelector('.input-container textarea');
-
-    textarea.addEventListener('keydown', (event) => {
-      if (event.shiftKey && event.key === 'Enter') {
-        event.preventDefault();
-        const newline = document.createElement('br');
-        textarea.appendChild(newline);
-      }
-    });
   };
   
   
@@ -371,7 +364,6 @@ function Chat() {
         }}
         placeholder="Type your message here..."
         className="input-textarea"
-        onPaste={handlePaste}
         onKeyDown={(e) => {
           if (e.key === 'Enter' && !e.shiftKey && newMessage.trim()) {
             e.preventDefault();

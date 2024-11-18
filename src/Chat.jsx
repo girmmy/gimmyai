@@ -14,7 +14,7 @@ const systemMessage = {
 };
 
 const API_KEY = import.meta.env.VITE_API_KEY;
-const currentGptModel = 'gpt-4o-2024-08-06';
+const currentGptModel = 'gpt-4o-mini';
 
 function Chat() {
   const [messages, setMessages] = useState([
@@ -280,16 +280,25 @@ function Chat() {
     formattedMessage = formattedMessage.replace(/\[([^\]]+)\]\((http[^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
     formattedMessage = formattedMessage.replace(/(\bhttps?:\/\/[^\s<]+)(?![^<]*>)(?!<\/a>)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
   
+    // Replace the try-catch block in the formatMessage function
     try {
       // Block-level LaTeX equations with $$...$$
       formattedMessage = formattedMessage.replace(/\$\$(.*?)\$\$/g, (match, equation) => {
-        const html = katex.renderToString(equation, { throwOnError: false, displayMode: true });
+        const html = katex.renderToString(equation, {
+          throwOnError: false,
+          displayMode: true,
+          output: 'html',
+        });
         return `<div class="katex-block">${html}</div>`;
       });
   
       // Inline LaTeX equations with $...$
       formattedMessage = formattedMessage.replace(/\$(.*?)\$/g, (match, equation) => {
-        const html = katex.renderToString(equation, { throwOnError: false, displayMode: false });
+        const html = katex.renderToString(equation, {
+          throwOnError: false,
+          displayMode: false,
+          output: 'html',
+        });
         return `<span class="katex-inline">${html}</span>`;
       });
     } catch (error) {
@@ -298,7 +307,6 @@ function Chat() {
   
     return { __html: formattedMessage };
   };
-  
 
   
 
@@ -339,17 +347,16 @@ function Chat() {
         )}
       </div>
       <div className="input-container">
-
-          <label htmlFor="imageInput">
-            <FaPaperclip className="attachment-button"/>
-            <input
-              type="file"
-              id="imageInput"
-              accept="image/png,image/jpeg,image/webp,image/gif,.pdf/.doc"
-              onChange={handleFileSelect}
-              style={{ display: 'none' }}
-            />
-          </label>
+        <label htmlFor="imageInput">
+          <FaPaperclip className="attachment-button"/>
+          <input
+            type="file"
+            id="imageInput"
+            accept="image/png,image/jpeg,image/webp,image/gif,.pdf/.doc"
+            onChange={handleFileSelect}
+            style={{ display: 'none' }}
+          />
+        </label>
        {selectedImage && (
         <div className="image-preview-container" onClick={handleImagePreviewClick}>
           <img src={selectedImage} alt="Selected Image" className="image-preview" />
@@ -371,7 +378,6 @@ function Chat() {
           }
         }}
       />
-
       <FaArrowUp className="send-button" onClick={handleSendMessage} title="Send" alt="Send Message"></FaArrowUp>
     </div>
   </div>
@@ -380,3 +386,4 @@ function Chat() {
 }
 
 export default Chat;
+/******  03fd2ed0-edfb-437a-91bf-b52a6c08033f  *******/

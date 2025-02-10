@@ -1,12 +1,12 @@
 :root {
   /* Color Scheme */
   --background-color: #2d2f34; /* Modern dark gray background */
-  --primary-color: #667eea; /* Modern purple for primary elements */
-  --secondary-color: #778beb; /* Lighter purple for secondary elements */
+  --primary-color: #fd6279; /* #fd6279 #667eea */
+  --secondary-color: #FFB6C1; /* #FFB6C1 #778beb */
   --text-color: #e6e6e6; /* Light text for readability */
   --input-color: #3c3e44; /* Slightly lighter input background for contrast */
   --input-text-color: #dcdcdc; /* Input text color for visibility */
-  --message-background: #4a4e69; /* Dark message bubble background */
+  --message-background: #694a62; /* #4a4e69 */
   /* --input-container-height: */
 }
 
@@ -56,17 +56,33 @@ body, html {
   font-weight: bold;
 }
 
-.katex-block, .katex-inline {
-  font-size: 1em;
-  line-height: 1.2em;
-}
-
-.katex-block > .katex {
+/* KATEX */
+/* Block-level equations */
+.katex-block {
   display: block;
+  margin: 1rem 0; /* Add vertical spacing */
+  text-align: center; /* Center the equation */
+  overflow-x: auto; /* Allow horizontal scrolling for long equations */
+  overflow-y: hidden; /* Prevent vertical scrolling */
+  padding: 1rem;
+  border-radius: 8px;
 }
 
-.katex-inline > .katex {
-  display: inline-block;
+/* Inline equations */
+.katex-inline {
+  display: inline;
+  vertical-align: middle; /* Align with surrounding text */
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+/* Error styling for invalid LaTeX */
+.katex-error {
+  color: red;
+  font-family: monospace;
+  background-color: #ffe6e6; /* Light red background for errors */
+  padding: 2px 4px;
+  border-radius: 4px;
 }
 
 .app-body {
@@ -413,4 +429,74 @@ body::-webkit-scrollbar-thumb {
   height: 30px;
   width: 30px;
   cursor: pointer;
+}
+
+
+
+
+
+
+
+
+/* Ensure consistent scrollbar styling */
+.app-body::-webkit-scrollbar {
+  width: var(--sb-size);
+}
+
+.app-body::-webkit-scrollbar-track {
+  background: var(--sb-track-color);
+  border-radius: 14px;
+}
+
+.app-body::-webkit-scrollbar-thumb {
+  background-color: var(--sb-thumb-color);
+  border-radius: 14px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .app-body {
+    padding: 1rem;
+  }
+
+  .input-container {
+    width: 90%; /* Increase width for smaller screens */
+  }
+
+  .message {
+    max-width: 90%; /* Increase message width for smaller screens */
+  }
+}
+
+@media (max-width: 480px) {
+  .app-header h1 {
+    font-size: 1.5rem; /* Smaller font size for very small screens */
+  }
+
+  .input-container textarea {
+    font-size: 16px; /* Adjust font size for smaller screens */
+  }
+
+  .input-container .send-button {
+    font-size: 1rem; /* Smaller font size for the button text */
+  }
+}
+
+/* Image preview in the input container */
+.image-preview-container {
+  margin-right: 12px;
+}
+
+.image-preview {
+  width: 50px;
+  height: auto;
+  border-radius: 10px;
+}
+
+/* Image messages in the chat */
+.message.image-message img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 10px;
+  margin: 10px 0;
 }

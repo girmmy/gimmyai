@@ -4,7 +4,7 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  background: linear-gradient(to right, #4361EE, #7F7D9B); /* Blue gradient background */
+  background: linear-gradient(to right, #fd6279, #FFB6C1); /* #4361EE, #7F7D9B */
   animation: animateBackground 5s ease-in-out infinite;
   overflow: hidden; /* Prevent content overflow on mobile */
 }
@@ -55,7 +55,7 @@ p {
 }
 
 .start-button {
-  background-color: #667eea;
+  background-color: #fc8294; /* 667eea  */
   color: #fff;
   font-weight: 700;
   border: none;
@@ -68,7 +68,7 @@ p {
 
 .start-button:hover {
   background-color: #ffffff;
-  color: #667eea;
+  color: #fc8294;
   box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
 }
 

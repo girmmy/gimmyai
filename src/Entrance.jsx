@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import './Entrance.css';
 import Chat from "./Chat";
-import logo from '../public/emnet-gasp-face.png'; // ../public/gaspface-logo.png
+import logo from '../public/gaspface-logo.png'; // ../public/emnet-gasp-face.png
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faInstagram, faGithub, faLinkedin } from '@fortawesome/free-brands-svg-icons';
 import { useNavigate } from 'react-router-dom';

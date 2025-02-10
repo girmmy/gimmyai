@@ -1,12 +1,12 @@
 :root {
   /* Color Scheme */
   --background-color: #2d2f34; /* Modern dark gray background */
-  --primary-color: #fd6279; /* #fd6279 #667eea */
-  --secondary-color: #FFB6C1; /* #FFB6C1 #778beb */
+  --primary-color: #667eea; /* #fd6279 #667eea */
+  --secondary-color: #778beb; /* #FFB6C1 #778beb */
   --text-color: #e6e6e6; /* Light text for readability */
   --input-color: #3c3e44; /* Slightly lighter input background for contrast */
   --input-text-color: #dcdcdc; /* Input text color for visibility */
-  --message-background: #694a62; /* #4a4e69 */
+  --message-background: #4a4e69; /* #4a4e69 #694a62*/
   /* --input-container-height: */
 }
 

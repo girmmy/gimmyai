@@ -2,7 +2,7 @@ import katex from 'katex';
 import 'katex/dist/katex.min.css';
 import { useState, useEffect, useRef } from 'react';
 import './Chat.css';
-import logo from '../public/emnet-gasp-face.png'; // '../public/gaspface-logo.png'
+import logo from '../public/gaspface-logo.png'; // '../public/emnet-gasp-face-logo.png'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCircleInfo } from '@fortawesome/free-solid-svg-icons';
 import content from "./aicontent.js";
@@ -18,7 +18,7 @@ const API_KEY = import.meta.env.VITE_API_KEY;
 function Chat() {
   const [messages, setMessages] = useState([
     {
-      message: `Hello, I'm **EmnetAI**! What can I help you with?`,
+      message: `Hello, I'm **GimmyAI**! What can I help you with?`,
       sender: "ChatGPT"
     }
   ]);

@@ -68,7 +68,7 @@ function Chat() {
   
       // Prepare the payload for the OpenAI API
       const payload = {
-        model: 'gpt-4o-mini',
+        model: 'gpt-4o',
         messages: [
           systemMessage,
           ...messages.map(msg => ({

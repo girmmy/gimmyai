@@ -293,7 +293,7 @@ function Chat() {
     <div id="root">
       <header className="app-header">
         <a href="/"><img src={logo} width="50px" height="60px" alt="GimmyAI Logo" className="app-logo" /></a>
-        <h1>EmnetAI</h1>
+        <h1>GimmyAI</h1>
         <div className="tooltip-container">
           <FontAwesomeIcon className="info-icon" icon={faCircleInfo} />
           <span className="tooltip w3-animate-opacity">Powered by GPT-4o</span>
@@ -308,7 +308,7 @@ function Chat() {
         <div ref={lastMessageRef} />
         {isTyping && (
           <div className="typing-indicator">
-            <span></span><span></span><span></span> EmnetAI is typing...
+            <span></span><span></span><span></span> GimmyAI is typing...
           </div>
         )}
       </div>

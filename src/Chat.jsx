@@ -6,7 +6,7 @@ import logo from '../public/gaspface-logo.png'; // '../public/emnet-gasp-face-lo
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCircleInfo } from '@fortawesome/free-solid-svg-icons';
 import content from "./aicontent.js";
-import { FaArrowUp, FaPaperclip } from "react-icons/fa";
+import { FaArrowUp, } from "react-icons/fa"; // add FaPaperclip if i bring back images
 
 const systemMessage = {
   role: "system",
@@ -314,8 +314,8 @@ function Chat() {
       </div>
 
       <div className="input-container">
-        <label htmlFor="imageInput">
-          <FaPaperclip className="attachment-button" />
+       <label htmlFor="imageInput">
+          {/* <FaPaperclip className="attachment-button" /> */}
           <input
             type="file"
             id="imageInput"

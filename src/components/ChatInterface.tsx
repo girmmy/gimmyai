@@ -22,6 +22,7 @@ import { generateReactHelpers } from "@uploadthing/react/hooks";
 import type { OurFileRouter } from "../app/api/uploadthing/core";
 import Navbar from "./Navbar";
 import { aicontent } from "../aicontent";
+import ConfirmationDialog from "./ConfirmationDialog";
 
 const openai = new OpenAI({
   apiKey: import.meta.env.VITE_OPENAI_API_KEY,
@@ -136,7 +137,7 @@ export default function ChatInterface() {
   const [isUploading, setIsUploading] = useState(false);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [showSidebar, setShowSidebar] = useState(true);
+  const [showSidebar, setShowSidebar] = useState(window.innerWidth >= 768);
   const [messages, setMessages] = useState<Message[]>([]);
   const [showTyping, setShowTyping] = useState(false);
   const [conversations, setConversations] = useState([
@@ -147,6 +148,12 @@ export default function ChatInterface() {
       updatedAt: new Date(),
     },
   ]);
+
+  // Confirmation dialog state
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [conversationToDelete, setConversationToDelete] = useState<
+    string | null
+  >(null);
 
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const { uploadFile, isUploading: useImageUploadIsUploading } =
@@ -342,9 +349,9 @@ export default function ChatInterface() {
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isLoading && !isUploading) {
-      void handleSubmit(e);
-    }
+    if (!message.trim() && !selectedImage) return;
+    if (isLoading || isUploading) return;
+    void handleSubmit(e);
   };
 
   const handleNewChat = async () => {
@@ -402,12 +409,21 @@ export default function ChatInterface() {
     e: React.MouseEvent
   ) => {
     e.stopPropagation(); // Prevent triggering the conversation selection
+
+    // Set the conversation to delete and show the dialog
+    setConversationToDelete(conversationId);
+    setShowDeleteDialog(true);
+  };
+
+  const confirmDeleteConversation = async () => {
+    if (!conversationToDelete) return;
+
     try {
       // Delete the conversation from Firebase
-      await deleteDoc(doc(db, "conversations", conversationId));
+      await deleteDoc(doc(db, "conversations", conversationToDelete));
 
       // If the deleted conversation was the current one, clear the current conversation
-      if (conversationId === currentConversationId) {
+      if (conversationToDelete === currentConversationId) {
         setCurrentConversationId(null);
         setMessages([
           {
@@ -420,6 +436,10 @@ export default function ChatInterface() {
     } catch (error) {
       console.error("Error deleting conversation:", error);
       toast.error("Failed to delete conversation. Please try again.");
+    } finally {
+      // Reset dialog state
+      setShowDeleteDialog(false);
+      setConversationToDelete(null);
     }
   };
 
@@ -462,13 +482,32 @@ export default function ChatInterface() {
     updateConversationTitle();
   }, [messages, currentConversationId]);
 
+  // Handle window resize to auto-show sidebar on desktop
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 768) {
+        setShowSidebar(true);
+      } else {
+        setShowSidebar(false);
+      }
+    };
+    window.addEventListener("resize", handleResize);
+    // Run once on mount
+    handleResize();
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   return (
     <div className="flex-1 flex overflow-hidden relative">
+      {/* Navbar with sidebar toggle */}
+      <div className="fixed top-0 left-0 right-0 z-40">
+        <Navbar onSidebarToggle={() => setShowSidebar((s) => !s)} />
+      </div>
       {/* Sidebar */}
       <div
         className={`top-16 left-0 h-[calc(100vh-4rem)] z-50 w-64 bg-slate-800 transform ${
           showSidebar ? "translate-x-0" : "-translate-x-full"
-        } md:translate-x-0 transition-transform duration-200 ease-in-out`}
+        } md:translate-x-0 transition-transform duration-200 ease-in-out fixed md:static border-r border-slate-700`}
       >
         <div className="flex flex-col h-full">
           {/* New Chat Button */}
@@ -570,6 +609,9 @@ export default function ChatInterface() {
         <div
           ref={chatContainerRef}
           className="flex-1 overflow-y-auto px-4 py-2 space-y-4"
+          style={{
+            paddingBottom: "5.5rem", // enough space for the fixed input area
+          }}
         >
           {messages.map((msg) => (
             <Message key={msg.id} msg={msg} />
@@ -595,7 +637,13 @@ export default function ChatInterface() {
           )}
         </div>
 
-        <div className="bg-slate-900 border-t border-slate-700">
+        {/* InputArea fixed at the bottom */}
+        <div
+          className={`fixed bottom-0 z-30 w-full md:left-64 md:w-[calc(100%-16rem)] bg-slate-900 border-t border-slate-700`}
+          style={{
+            left: showSidebar && window.innerWidth >= 768 ? "16rem" : 0,
+          }}
+        >
           <div className="p-4">
             <InputArea
               message={message}
@@ -615,6 +663,20 @@ export default function ChatInterface() {
           </div>
         </div>
       </div>
+
+      {/* Confirmation Dialog */}
+      <ConfirmationDialog
+        isOpen={showDeleteDialog}
+        onClose={() => {
+          setShowDeleteDialog(false);
+          setConversationToDelete(null);
+        }}
+        onConfirm={confirmDeleteConversation}
+        title="Delete Conversation"
+        message="Are you sure you want to delete this conversation? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+      />
     </div>
   );
 }

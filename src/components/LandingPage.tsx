@@ -34,7 +34,7 @@ export default function LandingPage() {
             repeat: Infinity,
             ease: "easeInOut",
           }}
-          className="absolute top-20 right-20 text-4xl"
+          className="absolute top-20 right-20 text-4xl hidden md:block"
         >
           🤖
         </motion.div>
@@ -48,7 +48,7 @@ export default function LandingPage() {
             repeat: Infinity,
             ease: "easeInOut",
           }}
-          className="absolute bottom-20 left-20 text-4xl"
+          className="absolute bottom-20 left-20 text-4xl hidden md:block"
         >
           📚
         </motion.div>

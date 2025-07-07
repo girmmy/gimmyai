@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef, useEffect } from "react";
 import { DropzoneRootProps, DropzoneInputProps } from "react-dropzone";
 
 type InputAreaProps = {
@@ -32,6 +32,25 @@ const InputArea: React.FC<InputAreaProps> = ({
   getRootProps,
   getInputProps,
 }) => {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.style.height =
+        textareaRef.current.scrollHeight + "px";
+    }
+  }, [message]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setMessage(e.target.value);
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.style.height =
+        textareaRef.current.scrollHeight + "px";
+    }
+  };
+
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-2">
       {imagePreview && (
@@ -53,12 +72,14 @@ const InputArea: React.FC<InputAreaProps> = ({
 
       <div className="flex items-center gap-2">
         <textarea
+          ref={textareaRef}
           value={message}
-          onChange={(e) => setMessage(e.target.value)}
+          onChange={handleChange}
           onKeyDown={handleKeyDown}
           placeholder="Type your message..."
           rows={1}
-          className="flex-1 resize-none rounded-md p-2 bg-slate-800 text-white border border-slate-600 focus:outline-none focus:border-blue-500"
+          className="flex-1 resize-none rounded-md p-2 bg-slate-800 text-white border border-slate-600 focus:outline-none focus:border-blue-500 max-h-40 min-h-[2.5rem]"
+          style={{ overflow: "auto" }}
         />
 
         {/* Image Upload Button */}

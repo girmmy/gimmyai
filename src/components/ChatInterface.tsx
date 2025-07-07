@@ -12,6 +12,8 @@ import {
   doc,
   updateDoc,
   deleteDoc,
+  where,
+  getDoc,
 } from "firebase/firestore";
 import OpenAI from "openai";
 import { useDropzone } from "react-dropzone";
@@ -23,6 +25,7 @@ import type { OurFileRouter } from "../app/api/uploadthing/core";
 import Navbar from "./Navbar";
 import { aicontent } from "../aicontent";
 import ConfirmationDialog from "./ConfirmationDialog";
+import { useAuth } from "../contexts/AuthContext";
 
 const openai = new OpenAI({
   apiKey: import.meta.env.VITE_OPENAI_API_KEY,
@@ -159,6 +162,8 @@ export default function ChatInterface() {
   const { uploadFile, isUploading: useImageUploadIsUploading } =
     useImageUpload();
 
+  const { user, loading } = useAuth();
+
   const onDrop = useCallback((acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {
       const file = acceptedFiles[0];
@@ -215,25 +220,31 @@ export default function ChatInterface() {
     );
     const q = query(messagesRef, orderBy("timestamp", "asc"));
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const newMessages = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        role: doc.data().role,
-        content: doc.data().content,
-        imageUrl: doc.data().imageUrl || undefined,
-        timestamp: doc.data().timestamp,
-      }));
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const newMessages = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          role: doc.data().role,
+          content: doc.data().content,
+          imageUrl: doc.data().imageUrl || undefined,
+          timestamp: doc.data().timestamp,
+        }));
 
-      // Always include the welcome message as the first message
-      setMessages([
-        {
-          id: "initial",
-          role: "assistant",
-          content: "How may I help you today?",
-        },
-        ...newMessages,
-      ]);
-    });
+        // Always include the welcome message as the first message
+        setMessages([
+          {
+            id: "initial",
+            role: "assistant",
+            content: "How may I help you today?",
+          },
+          ...newMessages,
+        ]);
+      },
+      (error) => {
+        console.error("Error listening to messages:", error);
+      }
+    );
 
     return () => unsubscribe();
   }, [currentConversationId]);
@@ -252,6 +263,7 @@ export default function ChatInterface() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user) return;
     if (!message.trim() && !selectedImage) return;
     if (isLoading || isUploading) return;
 
@@ -276,6 +288,7 @@ export default function ChatInterface() {
         const newConversationRef = await addDoc(
           collection(db, "conversations"),
           {
+            userId: user.uid,
             title: "New Chat",
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
@@ -283,6 +296,44 @@ export default function ChatInterface() {
         );
         conversationId = newConversationRef.id;
         setCurrentConversationId(conversationId);
+      } else {
+        // Verify the conversation belongs to the current user
+        try {
+          const conversationDoc = await getDoc(
+            doc(db, "conversations", conversationId)
+          );
+          if (
+            !conversationDoc.exists() ||
+            conversationDoc.data().userId !== user.uid
+          ) {
+            // Create a new conversation if the current one doesn't belong to the user
+            const newConversationRef = await addDoc(
+              collection(db, "conversations"),
+              {
+                userId: user.uid,
+                title: "New Chat",
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp(),
+              }
+            );
+            conversationId = newConversationRef.id;
+            setCurrentConversationId(conversationId);
+          }
+        } catch (error) {
+          console.error("Error checking conversation ownership:", error);
+          // Create a new conversation as fallback
+          const newConversationRef = await addDoc(
+            collection(db, "conversations"),
+            {
+              userId: user.uid,
+              title: "New Chat",
+              createdAt: serverTimestamp(),
+              updatedAt: serverTimestamp(),
+            }
+          );
+          conversationId = newConversationRef.id;
+          setCurrentConversationId(conversationId);
+        }
       }
 
       const newMessage: Message = {
@@ -355,26 +406,21 @@ export default function ChatInterface() {
   };
 
   const handleNewChat = async () => {
+    if (!user) return;
     try {
-      // Check if user has reached the conversation limit
       if (conversations.length >= 8) {
         toast.error(
           "You've reached the maximum limit of 8 conversations. Please delete an existing conversation to create a new one."
         );
         return;
       }
-
-      // Create a new conversation in Firebase
       const newConversationRef = await addDoc(collection(db, "conversations"), {
+        userId: user.uid,
         title: "New Chat",
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
-
-      // Set the new conversation as current
       setCurrentConversationId(newConversationRef.id);
-
-      // Reset messages to show welcome message
       setMessages([
         {
           id: "initial",
@@ -382,8 +428,6 @@ export default function ChatInterface() {
           content: "How may I help you today?",
         },
       ]);
-
-      // Update conversations list
       setConversations((prev) => [
         {
           id: newConversationRef.id,
@@ -393,8 +437,6 @@ export default function ChatInterface() {
         },
         ...prev,
       ]);
-
-      // Close sidebar on mobile
       if (window.innerWidth < 768) {
         setShowSidebar(false);
       }
@@ -443,11 +485,25 @@ export default function ChatInterface() {
     }
   };
 
-  // Load conversations when component mounts
+  // Load conversations when component mounts or user changes
   useEffect(() => {
+    if (!user) {
+      setConversations([
+        {
+          id: "initial",
+          title: "How may I help you today?",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ]);
+      return;
+    }
     const conversationsRef = collection(db, "conversations");
-    const q = query(conversationsRef, orderBy("updatedAt", "desc"));
-
+    const q = query(
+      conversationsRef,
+      where("userId", "==", user.uid),
+      orderBy("updatedAt", "desc")
+    );
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const newConversations = snapshot.docs.map((doc) => ({
         id: doc.id,
@@ -457,9 +513,8 @@ export default function ChatInterface() {
       }));
       setConversations(newConversations);
     });
-
     return () => unsubscribe();
-  }, []);
+  }, [user]);
 
   // Update conversation title when messages change
   useEffect(() => {
@@ -498,16 +553,28 @@ export default function ChatInterface() {
   }, []);
 
   return (
-    <div className="flex-1 flex overflow-hidden relative">
+    <div className="flex h-screen overflow-hidden relative">
       {/* Navbar with sidebar toggle */}
       <div className="fixed top-0 left-0 right-0 z-40">
         <Navbar onSidebarToggle={() => setShowSidebar((s) => !s)} />
       </div>
       {/* Sidebar */}
+      {/* Mobile sidebar overlay and backdrop */}
+      {showSidebar && window.innerWidth < 768 && (
+        <div
+          className="fixed inset-0 z-40 bg-black bg-opacity-40"
+          onClick={() => setShowSidebar(false)}
+        />
+      )}
       <div
-        className={`top-16 left-0 h-[calc(100vh-4rem)] z-50 w-64 bg-slate-800 transform ${
-          showSidebar ? "translate-x-0" : "-translate-x-full"
-        } md:translate-x-0 transition-transform duration-200 ease-in-out fixed md:static border-r border-slate-700`}
+        className={`fixed top-16 left-0 h-[calc(100vh-4rem)] z-50 w-64 bg-slate-800 border-r border-slate-700 transition-transform duration-200 ease-in-out
+          ${
+            showSidebar || window.innerWidth >= 768
+              ? "translate-x-0"
+              : "-translate-x-full"
+          }
+          md:translate-x-0 md:static md:h-auto md:z-0 md:w-64 md:bg-slate-800 md:border-r md:border-slate-700 flex-shrink-0`}
+        style={{ position: window.innerWidth >= 768 ? "static" : "fixed" }}
       >
         <div className="flex flex-col h-full">
           {/* New Chat Button */}
@@ -534,7 +601,7 @@ export default function ChatInterface() {
           </div>
 
           {/* Conversations List */}
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1">
             {conversations.length === 0 ? (
               <div className="p-4 text-center text-slate-400">
                 No conversations yet
@@ -605,12 +672,13 @@ export default function ChatInterface() {
       </div>
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 ml-0 h-full">
         <div
           ref={chatContainerRef}
           className="flex-1 overflow-y-auto px-4 py-2 space-y-4"
           style={{
             paddingBottom: "5.5rem", // enough space for the fixed input area
+            height: "calc(100vh - 4rem)",
           }}
         >
           {messages.map((msg) => (
@@ -640,9 +708,6 @@ export default function ChatInterface() {
         {/* InputArea fixed at the bottom */}
         <div
           className={`fixed bottom-0 z-30 w-full md:left-64 md:w-[calc(100%-16rem)] bg-slate-900 border-t border-slate-700`}
-          style={{
-            left: showSidebar && window.innerWidth >= 768 ? "16rem" : 0,
-          }}
         >
           <div className="p-4">
             <InputArea

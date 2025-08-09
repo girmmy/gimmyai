@@ -96,6 +96,83 @@ src/
 - File sharing capabilities
 - AI response generation
 
+## Maintenance Mode
+
+GimmyAI includes a built-in maintenance page system for when you need to take the app down for updates or reconstruction.
+
+### How to Enable Maintenance Mode
+
+1. **Open the maintenance config file:**
+
+   ```bash
+   src/config/maintenance.ts
+   ```
+
+2. **Enable maintenance mode:**
+
+   ```typescript
+   export const MAINTENANCE_MODE = true;
+   ```
+
+3. **Choose a scenario (optional):**
+   In `src/App.tsx`, update the scenario:
+
+   ```typescript
+   const config = getMaintenanceConfig("reconstruction"); // or 'upgrade' or 'maintenance'
+   ```
+
+4. **Deploy your changes**
+
+### Available Scenarios
+
+- **`upgrade`** - "Upgrading GimmyAI!" (for feature updates)
+- **`maintenance`** - "Scheduled Maintenance" (for routine maintenance)
+- **`reconstruction`** - "GimmyAI is Being Reconstructed!" (for major rebuilds)
+
+### How to Disable Maintenance Mode
+
+1. **Open the maintenance config file:**
+
+   ```bash
+   src/config/maintenance.ts
+   ```
+
+2. **Disable maintenance mode:**
+
+   ```typescript
+   export const MAINTENANCE_MODE = false;
+   ```
+
+3. **Deploy your changes**
+
+### Testing Maintenance Page
+
+You can test the maintenance page without enabling full maintenance mode by visiting:
+
+```
+http://localhost:5173/maintenance
+```
+
+### Console Helpers
+
+When the app is running, you can use these console commands for quick maintenance mode management:
+
+```javascript
+// Enable maintenance mode
+maintenance.enable("reconstruction");
+
+// Disable maintenance mode
+maintenance.disable();
+
+// Quick scenario shortcuts
+maintenance.scenarios.quickUpgrade();
+maintenance.scenarios.routineMaintenance();
+maintenance.scenarios.majorReconstruction();
+
+// Show help
+maintenance.help();
+```
+
 ## Contributing
 
 1. Fork the repository

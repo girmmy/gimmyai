@@ -12,6 +12,9 @@ import SignUpForm from "./components/SignUpForm";
 import ForgotPasswordForm from "./components/ForgotPasswordForm";
 import LandingPage from "./components/LandingPage";
 import NotFound from "./components/NotFound";
+import MaintenancePage from "./components/MaintenancePage";
+import { MAINTENANCE_MODE, getMaintenanceConfig } from "./config/maintenance";
+import "./utils/maintenanceToggle"; // Enables console helpers
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -28,6 +31,12 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
 }
 
 function App() {
+  // Check if maintenance mode is enabled
+  if (MAINTENANCE_MODE) {
+    const config = getMaintenanceConfig("reconstruction"); // Change scenario as needed
+    return <MaintenancePage {...config} />;
+  }
+
   return (
     <Router>
       <AuthProvider>
@@ -44,6 +53,13 @@ function App() {
                 <PrivateRoute>
                   <ChatInterface />
                 </PrivateRoute>
+              }
+            />
+            {/* Maintenance route for testing */}
+            <Route
+              path="/maintenance"
+              element={
+                <MaintenancePage {...getMaintenanceConfig("reconstruction")} />
               }
             />
             <Route path="*" element={<NotFound />} />

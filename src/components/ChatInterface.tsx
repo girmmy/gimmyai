@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { toast } from "sonner";
-import { useImageUpload } from "../lib/use-upload-thing";
+
 import { db } from "../firebase/config";
 import {
   collection,
@@ -16,16 +16,18 @@ import {
   getDoc,
 } from "firebase/firestore";
 import OpenAI from "openai";
-import { useDropzone } from "react-dropzone";
+
 import InputArea from "./InputArea";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { storage } from "../firebase/config";
-import { generateReactHelpers } from "@uploadthing/react/hooks";
-import type { OurFileRouter } from "../app/api/uploadthing/core";
+
 import Navbar from "./Navbar";
 import { aicontent } from "../aicontent";
 import ConfirmationDialog from "./ConfirmationDialog";
 import { useAuth } from "../contexts/AuthContext";
+import {
+  showErrorToast,
+  showSuccessToast,
+  handleOpenAIError,
+} from "../utils/errorHandler";
 
 const openai = new OpenAI({
   apiKey: import.meta.env.VITE_OPENAI_API_KEY,
@@ -129,17 +131,14 @@ const TypingIndicator = () => (
 
 // InputArea component unchanged (omitted for brevity)
 
-const { useUploadThing } = generateReactHelpers<OurFileRouter>();
-
 export default function ChatInterface() {
   const [currentConversationId, setCurrentConversationId] = useState<
     string | null
   >(null);
   const [message, setMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-  const [selectedImage, setSelectedImage] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const [showSidebar, setShowSidebar] = useState(window.innerWidth >= 768);
   const [messages, setMessages] = useState<Message[]>([]);
   const [showTyping, setShowTyping] = useState(false);
@@ -159,48 +158,8 @@ export default function ChatInterface() {
   >(null);
 
   const chatContainerRef = useRef<HTMLDivElement>(null);
-  const { uploadFile, isUploading: useImageUploadIsUploading } =
-    useImageUpload();
 
   const { user, loading } = useAuth();
-
-  const onDrop = useCallback((acceptedFiles: File[]) => {
-    if (acceptedFiles.length > 0) {
-      const file = acceptedFiles[0];
-      if (file.size > 5 * 1024 * 1024) {
-        // 5MB limit
-        toast.error("Image size must be less than 5MB");
-        return;
-      }
-      setSelectedImage(file);
-      const reader = new FileReader();
-      reader.onload = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  }, []);
-
-  const { getRootProps, getInputProps } = useDropzone({
-    onDrop,
-    accept: {
-      "image/*": [".png", ".jpg", ".jpeg", ".gif"],
-    },
-    maxSize: 5 * 1024 * 1024, // 5MB
-    multiple: false,
-  });
-
-  const [imageUploadCount, setImageUploadCount] = useState(0);
-  const [lastUploadDate, setLastUploadDate] = useState<string | null>(null);
-
-  // Check and reset daily upload count
-  useEffect(() => {
-    const today = new Date().toDateString();
-    if (lastUploadDate !== today) {
-      setImageUploadCount(0);
-      setLastUploadDate(today);
-    }
-  }, [lastUploadDate]);
 
   useEffect(() => {
     if (!currentConversationId) {
@@ -242,7 +201,7 @@ export default function ChatInterface() {
         ]);
       },
       (error) => {
-        console.error("Error listening to messages:", error);
+        showErrorToast(error, "firebase");
       }
     );
 
@@ -256,57 +215,56 @@ export default function ChatInterface() {
     }
   }, [messages, showTyping]);
 
-  const removeImage = () => {
-    setSelectedImage(null);
-    setImagePreview(null);
-  };
+  const handleSubmit = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!user) return;
+      if (!message.trim()) return;
+      if (isLoading || isSubmitting) return;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user) return;
-    if (!message.trim() && !selectedImage) return;
-    if (isLoading || isUploading) return;
+      try {
+        setIsLoading(true);
+        setIsSubmitting(true);
 
-    try {
-      setIsLoading(true);
-      let imageUrl: string | undefined;
-
-      if (selectedImage) {
-        setIsUploading(true);
-        const url = await uploadFile(selectedImage);
-        if (url) {
-          imageUrl = url;
-          setImagePreview(url);
-        } else {
-          throw new Error("Failed to get image URL from upload");
-        }
-        setIsUploading(false);
-      }
-
-      let conversationId = currentConversationId;
-      if (!conversationId) {
-        const newConversationRef = await addDoc(
-          collection(db, "conversations"),
-          {
-            userId: user.uid,
-            title: "New Chat",
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-          }
-        );
-        conversationId = newConversationRef.id;
-        setCurrentConversationId(conversationId);
-      } else {
-        // Verify the conversation belongs to the current user
-        try {
-          const conversationDoc = await getDoc(
-            doc(db, "conversations", conversationId)
+        let conversationId = currentConversationId;
+        if (!conversationId) {
+          const newConversationRef = await addDoc(
+            collection(db, "conversations"),
+            {
+              userId: user.uid,
+              title: "New Chat",
+              createdAt: serverTimestamp(),
+              updatedAt: serverTimestamp(),
+            }
           );
-          if (
-            !conversationDoc.exists() ||
-            conversationDoc.data().userId !== user.uid
-          ) {
-            // Create a new conversation if the current one doesn't belong to the user
+          conversationId = newConversationRef.id;
+          setCurrentConversationId(conversationId);
+        } else {
+          // Verify the conversation belongs to the current user
+          try {
+            const conversationDoc = await getDoc(
+              doc(db, "conversations", conversationId)
+            );
+            if (
+              !conversationDoc.exists() ||
+              conversationDoc.data().userId !== user.uid
+            ) {
+              // Create a new conversation if the current one doesn't belong to the user
+              const newConversationRef = await addDoc(
+                collection(db, "conversations"),
+                {
+                  userId: user.uid,
+                  title: "New Chat",
+                  createdAt: serverTimestamp(),
+                  updatedAt: serverTimestamp(),
+                }
+              );
+              conversationId = newConversationRef.id;
+              setCurrentConversationId(conversationId);
+            }
+          } catch (error) {
+            showErrorToast(error, "firebase");
+            // Create a new conversation as fallback
             const newConversationRef = await addDoc(
               collection(db, "conversations"),
               {
@@ -319,91 +277,118 @@ export default function ChatInterface() {
             conversationId = newConversationRef.id;
             setCurrentConversationId(conversationId);
           }
-        } catch (error) {
-          console.error("Error checking conversation ownership:", error);
-          // Create a new conversation as fallback
-          const newConversationRef = await addDoc(
-            collection(db, "conversations"),
-            {
-              userId: user.uid,
-              title: "New Chat",
-              createdAt: serverTimestamp(),
-              updatedAt: serverTimestamp(),
-            }
-          );
-          conversationId = newConversationRef.id;
-          setCurrentConversationId(conversationId);
         }
-      }
 
-      const newMessage: Message = {
-        id: Date.now().toString(),
-        role: "user",
-        content: message,
-        ...(imageUrl ? { imageUrl } : {}),
-      };
+        const newMessage: Message = {
+          id: Date.now().toString(),
+          role: "user",
+          content: message,
+        };
 
-      await addDoc(collection(db, `conversations/${conversationId}/messages`), {
-        ...newMessage,
-        timestamp: serverTimestamp(),
-      });
-
-      setMessage("");
-      setSelectedImage(null);
-      setImagePreview(null);
-
-      setShowTyping(true);
-      const response = await openai.chat.completions.create({
-        model: "gpt-4",
-        messages: [
+        await addDoc(
+          collection(db, `conversations/${conversationId}/messages`),
           {
-            role: "system",
-            content: aicontent,
-          },
-          ...messages.map((msg) => ({ role: msg.role, content: msg.content })),
-          { role: "user", content: message },
-        ],
-      });
+            ...newMessage,
+            timestamp: serverTimestamp(),
+          }
+        );
 
-      const aiResponse =
-        response.choices?.[0]?.message?.content ||
-        "Sorry, I couldn't generate a response.";
-      const aiMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: "assistant",
-        content: aiResponse,
-      };
+        setMessage("");
 
-      await addDoc(collection(db, `conversations/${conversationId}/messages`), {
-        ...aiMessage,
-        timestamp: serverTimestamp(),
-      });
+        setShowTyping(true);
+        const response = await openai.chat.completions.create({
+          model: "gpt-4",
+          messages: [
+            {
+              role: "system",
+              content: aicontent,
+            },
+            ...messages.map((msg) => ({
+              role: msg.role,
+              content: msg.content,
+            })),
+            { role: "user", content: message },
+          ],
+        });
 
-      setShowTyping(false);
-    } catch (error) {
-      console.error("handleSubmit error:", error);
-      toast.error(
-        "Error sending message. Check your connection and try again."
-      );
-      setShowTyping(false);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+        const aiResponse =
+          response.choices?.[0]?.message?.content ||
+          "Sorry, I couldn't generate a response.";
+        const aiMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          role: "assistant",
+          content: aiResponse,
+        };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
+        await addDoc(
+          collection(db, `conversations/${conversationId}/messages`),
+          {
+            ...aiMessage,
+            timestamp: serverTimestamp(),
+          }
+        );
+
+        setShowTyping(false);
+      } catch (error: any) {
+        setShowTyping(false);
+
+        // Get the error message and display it in chat
+        const errorMessage = handleOpenAIError(error);
+
+        // Add error message as a system message in the chat
+        const errorChatMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          role: "assistant",
+          content: `❌ ${errorMessage}`,
+        };
+
+        try {
+          if (currentConversationId) {
+            await addDoc(
+              collection(db, `conversations/${currentConversationId}/messages`),
+              {
+                ...errorChatMessage,
+                timestamp: serverTimestamp(),
+              }
+            );
+          } else {
+            // If no conversation ID, just add to local messages
+            setMessages((prev) => [...prev, errorChatMessage]);
+          }
+        } catch (dbError) {
+          // If database save fails, just add to local messages
+          setMessages((prev) => [...prev, errorChatMessage]);
+        }
+
+        // Still show toast as backup (but less noisy)
+        showErrorToast(error, "openai");
+      } finally {
+        setIsLoading(false);
+        setIsSubmitting(false);
+      }
+    },
+    [user, message, isLoading, isSubmitting, currentConversationId, messages]
+  );
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        void handleSubmit(e);
+      }
+    },
+    [handleSubmit]
+  );
+
+  const handleFormSubmit = useCallback(
+    (e: React.FormEvent) => {
       e.preventDefault();
+      if (!message.trim()) return;
+      if (isLoading || isSubmitting) return;
       void handleSubmit(e);
-    }
-  };
-
-  const handleFormSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!message.trim() && !selectedImage) return;
-    if (isLoading || isUploading) return;
-    void handleSubmit(e);
-  };
+    },
+    [message, isLoading, isSubmitting, handleSubmit]
+  );
 
   const handleNewChat = async () => {
     if (!user) return;
@@ -441,8 +426,7 @@ export default function ChatInterface() {
         setShowSidebar(false);
       }
     } catch (error) {
-      console.error("Error creating new chat:", error);
-      toast.error("Failed to create new chat. Please try again.");
+      showErrorToast(error, "firebase");
     }
   };
 
@@ -476,8 +460,7 @@ export default function ChatInterface() {
         ]);
       }
     } catch (error) {
-      console.error("Error deleting conversation:", error);
-      toast.error("Failed to delete conversation. Please try again.");
+      showErrorToast(error, "firebase");
     } finally {
       // Reset dialog state
       setShowDeleteDialog(false);
@@ -530,6 +513,7 @@ export default function ChatInterface() {
           updatedAt: serverTimestamp(),
         });
       } catch (error) {
+        // Silently log title update errors as they're not critical
         console.error("Error updating conversation title:", error);
       }
     };
@@ -717,13 +701,7 @@ export default function ChatInterface() {
               handleKeyDown={handleKeyDown}
               isInCooldown={false}
               cooldownRemaining={0}
-              isLoading={isLoading}
-              isUploading={isUploading}
-              selectedImage={selectedImage}
-              imagePreview={imagePreview}
-              removeImage={removeImage}
-              getRootProps={getRootProps}
-              getInputProps={getInputProps}
+              isLoading={isLoading || isSubmitting}
             />
           </div>
         </div>
